@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stock Intelligence Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 240px;
+      background: #1a1d27;
+      border-right: 1px solid #2a2d3e;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    #sidebar h2 {
+      padding: 20px 16px 12px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #6c6f82;
+      border-bottom: 1px solid #2a2d3e;
+    }
+
+    #company-list { overflow-y: auto; flex: 1; }
+
+    .company-item {
+      padding: 14px 16px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .company-item:hover { background: #22263a; }
+
+    .company-item.active {
+      background: #1e2235;
+      border-left-color: #4f8ef7;
+    }
+
+    .company-item .symbol {
+      font-size: 14px;
+      font-weight: 600;
+      color: #c9d1d9;
+    }
+
+    .company-item .name {
+      font-size: 11px;
+      color: #6c6f82;
+      margin-top: 2px;
+    }
+
+    /* ── Main ── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    #header {
+      background: #1a1d27;
+      border-bottom: 1px solid #2a2d3e;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #header h1 { font-size: 18px; font-weight: 600; color: #e6edf3; }
+    #header span { font-size: 12px; color: #6c6f82; }
+
+    /* ── Movers Bar ── */
+    #movers-bar {
+      background: #13161f;
+      border-bottom: 1px solid #2a2d3e;
+      padding: 8px 24px;
+      display: flex;
+      gap: 24px;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+
+    .mover-label { color: #6c6f82; margin-right: 6px; }
+
+    .gainer { color: #3fb950; font-weight: 600; }
+    .loser  { color: #f85149; font-weight: 600; }
+
+    /* ── Content ── */
+    #content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Stat Cards ── */
+    #stat-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2a2d3e;
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .card .label {
+      font-size: 11px;
+      color: #6c6f82;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .card .value {
+      font-size: 22px;
+      font-weight: 700;
+      margin-top: 6px;
+      color: #e6edf3;
+    }
+
+    .card .sub { font-size: 11px; margin-top: 4px; color: #6c6f82; }
+    .card .up   { color: #3fb950; }
+    .card .down { color: #f85149; }
+
+    /* ── Chart Panel ── */
+    .panel {
+      background: #1a1d27;
+      border: 1px solid #2a2d3e;
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .panel-header h3 { font-size: 14px; font-weight: 600; color: #c9d1d9; }
+
+    .filter-btns { display: flex; gap: 6px; }
+
+    .filter-btn {
+      padding: 4px 12px;
+      border-radius: 6px;
+      border: 1px solid #2a2d3e;
+      background: transparent;
+      color: #8b949e;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      background: #4f8ef7;
+      color: #fff;
+      border-color: #4f8ef7;
+    }
+
+    .chart-wrap { position: relative; height: 260px; }
+
+    /* ── Compare Section ── */
+    #compare-section { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+    #compare-section select {
+      padding: 7px 12px;
+      background: #13161f;
+      border: 1px solid #2a2d3e;
+      border-radius: 8px;
+      color: #c9d1d9;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    #compare-btn {
+      padding: 7px 18px;
+      background: #4f8ef7;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    #compare-btn:hover { background: #3a7ae0; }
+
+    #corr-badge {
+      padding: 5px 14px;
+      background: #22263a;
+      border-radius: 20px;
+      font-size: 12px;
+      color: #c9d1d9;
+      display: none;
+    }
+
+    /* ── Placeholder ── */
+    #placeholder {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #3d4051;
+      gap: 12px;
+    }
+
+    #placeholder svg { opacity: 0.3; }
+    #placeholder p { font-size: 15px; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <h2>📈 Companies</h2>
+  <div id="company-list"></div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <div id="header">
+    <h1>Stock Intelligence Dashboard</h1>
+    <span id="last-updated"></span>
+  </div>
+
+  <!-- Movers Bar -->
+  <div id="movers-bar">
+    <span><span class="mover-label">🟢 Top Gainers:</span><span id="gainers-text">Loading...</span></span>
+    <span><span class="mover-label">🔴 Top Losers:</span><span id="losers-text">—</span></span>
+  </div>
+
+  <!-- Placeholder -->
+  <div id="placeholder">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+    <p>Select a company from the sidebar to begin</p>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div id="content" class="hidden">
+
+    <!-- Stat Cards -->
+    <div id="stat-cards">
+      <div class="card">
+        <div class="label">Latest Close</div>
+        <div class="value" id="stat-close">—</div>
+        <div class="sub" id="stat-return">—</div>
+      </div>
+      <div class="card">
+        <div class="label">52W High</div>
+        <div class="value up" id="stat-high">—</div>
+        <div class="sub">12 month high</div>
+      </div>
+      <div class="card">
+        <div class="label">52W Low</div>
+        <div class="value down" id="stat-low">—</div>
+        <div class="sub">12 month low</div>
+      </div>
+      <div class="card">
+        <div class="label">Volatility (7D)</div>
+        <div class="value" id="stat-vol">—</div>
+        <div class="sub">Std dev of daily returns</div>
+      </div>
+    </div>
+
+    <!-- Price Chart -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3 id="chart-title">Closing Price</h3>
+        <div class="filter-btns">
+          <button class="filter-btn active" onclick="changeRange(this, 30)">30D</button>
+          <button class="filter-btn" onclick="changeRange(this, 90)">90D</button>
+          <button class="filter-btn" onclick="changeRange(this, 180)">180D</button>
+          <button class="filter-btn" onclick="changeRange(this, 365)">1Y</button>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+
+    <!-- Compare Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Compare Stocks</h3>
+        <div id="compare-section">
+          <select id="cmp-s1"></select>
+          <select id="cmp-s2"></select>
+          <button id="compare-btn" onclick="loadCompare()">Compare</button>
+          <span id="corr-badge"></span>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="compareChart"></canvas></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let priceChartInst = null;
+  let compareChartInst = null;
+  let currentSymbol = null;
+  let companies = [];
+
+  const BASE = "";
+
+  // ── Init ────────────────────────────────────────────────────────────────
+  async function init() {
+    await loadMovers();
+    const res = await fetch(`${BASE}/companies`);
+    companies = await res.json();
+
+    const list = document.getElementById("company-list");
+    const s1 = document.getElementById("cmp-s1");
+    const s2 = document.getElementById("cmp-s2");
+
+    companies.forEach(c => {
+      // Sidebar item
+      const el = document.createElement("div");
+      el.className = "company-item";
+      el.dataset.symbol = c.symbol;
+      el.innerHTML = `<div class="symbol">${c.symbol}</div><div class="name">${c.name}</div>`;
+      el.onclick = () => selectCompany(c.symbol, el);
+      list.appendChild(el);
+
+      // Compare dropdowns
+      [s1, s2].forEach(sel => {
+        const opt = document.createElement("option");
+        opt.value = c.symbol;
+        opt.textContent = c.symbol;
+        sel.appendChild(opt);
+      });
+    });
+
+    s2.selectedIndex = 1;
+    document.getElementById("last-updated").textContent = "Updated: " + new Date().toLocaleTimeString();
+  }
+
+  // ── Movers ───────────────────────────────────────────────────────────────
+  async function loadMovers() {
+    try {
+      const res = await fetch(`${BASE}/movers`);
+      const data = await res.json();
+      document.getElementById("gainers-text").innerHTML =
+        data.gainers.map(g => `<span class="gainer">${g.symbol} +${g.return.toFixed(2)}%</span>`).join("  ");
+      document.getElementById("losers-text").innerHTML =
+        data.losers.map(l => `<span class="loser">${l.symbol} ${l.return.toFixed(2)}%</span>`).join("  ");
+    } catch(e) {}
+  }
+
+  // ── Select Company ───────────────────────────────────────────────────────
+  async function selectCompany(symbol, el) {
+    currentSymbol = symbol;
+
+    document.querySelectorAll(".company-item").forEach(i => i.classList.remove("active"));
+    el.classList.add("active");
+
+    document.getElementById("placeholder").classList.add("hidden");
+    document.getElementById("content").classList.remove("hidden");
+
+    await Promise.all([loadSummary(symbol), loadPriceChart(symbol, 30)]);
+  }
+
+  // ── Summary Cards ────────────────────────────────────────────────────────
+  async function loadSummary(symbol) {
+    const res = await fetch(`${BASE}/summary/${symbol}`);
+    const d = await res.json();
+
+    document.getElementById("stat-close").textContent = "₹" + d.latest_close.toFixed(2);
+    const ret = d.latest_return;
+    const retEl = document.getElementById("stat-return");
+    retEl.textContent = (ret >= 0 ? "▲ +" : "▼ ") + ret.toFixed(2) + "% today";
+    retEl.className = "sub " + (ret >= 0 ? "up" : "down");
+
+    document.getElementById("stat-high").textContent = "₹" + d["52w_high"].toFixed(2);
+    document.getElementById("stat-low").textContent  = "₹" + d["52w_low"].toFixed(2);
+    document.getElementById("stat-vol").textContent  = d.volatility_7d.toFixed(4);
+  }
+
+// ── Price Chart ──────────────────────────────────────────────────────────
+  async function loadPriceChart(symbol, days) {
+    const [dataRes, predRes] = await Promise.all([
+      fetch(`${BASE}/data/${symbol}?days=${days}`),
+      fetch(`${BASE}/predict/${symbol}`)
+    ]);
+    const json = await dataRes.json();
+    const predJson = await predRes.json();
+    const data = json.data;
+    const preds = predJson.predictions;
+
+    // Historical data
+    const histLabels = data.map(d => d.Date);
+    const closes     = data.map(d => d.Close);
+    const ma7        = data.map(d => d.MA_7);
+
+    // Prediction data — pad with nulls for historical range
+    const predLabels = preds.map(p => p.Date);
+    const predValues = preds.map(p => p.Predicted_Close);
+
+    // Combine labels
+    const allLabels = [...histLabels, ...predLabels];
+
+    // Pad historical datasets with nulls for future dates
+    const closesPadded = [...closes, ...Array(predLabels.length).fill(null)];
+    const ma7Padded    = [...ma7,    ...Array(predLabels.length).fill(null)];
+
+    // Pad prediction dataset with nulls for historical dates
+    // Anchor the prediction line to the last historical close
+    const predPadded = [
+      ...Array(histLabels.length - 1).fill(null),
+      closes[closes.length - 1],  // connect to last real point
+      ...predValues
+    ];
+
+    document.getElementById("chart-title").textContent = `${symbol} — Price & 7-Day Forecast`;
+
+    if (priceChartInst) priceChartInst.destroy();
+    const ctx = document.getElementById("priceChart").getContext("2d");
+
+    priceChartInst = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: allLabels,
+        datasets: [
+          {
+            label: "Close",
+            data: closesPadded,
+            borderColor: "#4f8ef7",
+            backgroundColor: "rgba(79,142,247,0.08)",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: true,
+            tension: 0.3
+          },
+          {
+            label: "7D MA",
+            data: ma7Padded,
+            borderColor: "#f0a500",
+            borderWidth: 1.5,
+            borderDash: [4, 4],
+            pointRadius: 0,
+            fill: false,
+            tension: 0.3
+          },
+          {
+            label: "ML Forecast",
+            data: predPadded,
+            borderColor: "#bc8cff",
+            borderWidth: 2,
+            borderDash: [6, 3],
+            pointRadius: 3,
+            pointBackgroundColor: "#bc8cff",
+            fill: false,
+            tension: 0.3
+          }
+        ]
+      },
+      options: chartOptions("₹")
+    });
+  }
+  
+  // ── Range Button ─────────────────────────────────────────────────────────
+  function changeRange(btn, days) {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    if (currentSymbol) loadPriceChart(currentSymbol, days);
+  }
+
+  // ── Compare Chart ────────────────────────────────────────────────────────
+  async function loadCompare() {
+    const s1 = document.getElementById("cmp-s1").value;
+    const s2 = document.getElementById("cmp-s2").value;
+    if (s1 === s2) return alert("Please select two different stocks.");
+
+    const res = await fetch(`${BASE}/compare?symbol1=${s1}&symbol2=${s2}`);
+    const json = await res.json();
+
+    const badge = document.getElementById("corr-badge");
+    badge.textContent = `Correlation: ${json.correlation}`;
+    badge.style.display = "inline-block";
+
+    const labels = json.data.map(d => d.Date);
+    const v1 = json.data.map(d => d[`${s1}_norm`]);
+    const v2 = json.data.map(d => d[`${s2}_norm`]);
+
+    if (compareChartInst) compareChartInst.destroy();
+    const ctx = document.getElementById("compareChart").getContext("2d");
+
+    compareChartInst = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          { label: s1, data: v1, borderColor: "#4f8ef7", borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3 },
+          { label: s2, data: v2, borderColor: "#3fb950", borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3 }
+        ]
+      },
+      options: chartOptions("", "Normalized to 100")
+    });
+  }
+
+  // ── Shared Chart Options ─────────────────────────────────────────────────
+  function chartOptions(prefix = "", yLabel = "") {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { labels: { color: "#8b949e", font: { size: 12 } } },
+        tooltip: {
+          backgroundColor: "#1a1d27",
+          borderColor: "#2a2d3e",
+          borderWidth: 1,
+          titleColor: "#c9d1d9",
+          bodyColor: "#8b949e",
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${prefix}${ctx.parsed.y?.toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#6c6f82", maxTicksLimit: 8, font: { size: 11 } },
+          grid: { color: "#1e2130" }
+        },
+        y: {
+          ticks: { color: "#6c6f82", font: { size: 11 },
+            callback: v => prefix + v.toLocaleString("en-IN")
+          },
+          grid: { color: "#1e2130" },
+          title: yLabel ? { display: true, text: yLabel, color: "#6c6f82", font: { size: 11 } } : {}
+        }
+      }
+    };
+  }
+
+  init();
+</script>
+</body>
+</html>
