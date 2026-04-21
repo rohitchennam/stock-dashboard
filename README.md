@@ -1,4 +1,4 @@
-# 📈 Stock Intelligence Dashboard
+# Stock Intelligence Dashboard
 
 A mini financial data platform built with FastAPI, Pandas, and Chart.js.
 Tracks real NSE stock data for 10 Indian companies with ML price forecasting.
@@ -53,3 +53,23 @@ docker run -p 8000:8000 stock-dashboard
 ```
 
 ## Project Structure
+
+```bash
+stock-dashboard/
+├── app/
+│   ├── main.py       # FastAPI routes
+│   ├── data.py       # Data fetching & processing
+│   └── ml.py         # ML prediction
+├── static/
+│   └── index.html    # Frontend dashboard
+├── data/             # Cached CSV files
+├── Dockerfile
+├── requirements.txt
+└── README.md
+```
+
+## Tracked Companies
+
+```bash
+INFY, TCS, RELIANCE, HDFCBANK, WIPRO, ICICIBANK, HINDUNILVR, SBIN, BAJFINANCE, MARUTI
+```
